@@ -1,7 +1,7 @@
 let PAUSE_EVERYTHING = 20
 
 let modInfo = {
-    name: "The TearonQ (i have no creative names)",
+    name: "TearonQ's tree",
     id: "tearonq_another_game_lmao",
     author: "TearonQ",
     pointsName: "points",
@@ -24,7 +24,7 @@ let changelog = `<h1>Changelog:</h1><br>
         - Added things.<br>
         - Added stuff.`
 
-let winText = `Congratulations! You have reached the end and beaten this game, but for now...`
+let winText = `You win, I guess, try to get eee10 i dare you >:3`
 
 // If you add new functions anywhere inside of a layer, and those functions have an effect when called, add them here.
 // (The ones here are examples, all official functions are already taken care of)
@@ -80,7 +80,7 @@ function getPointGen() {
         gain = gain.pow(tmp.l.petPassiveEffs.circle)
         if (player.l.petEquipped.includes('pentagon') && (inChallenge('p', 31) || inChallenge('p', 41) || hasUpgrade('q', 16))) {
             gain = gain.pow(tmp.l.petActiveEffs.pentagon.pow(
-                (inChallenge('p', 31) || inChallenge('p', 41))
+                (inChallenge('p', 31) || inChallenge('p', 41) || hasUpgrade('q', 31))
                     ? 1
                     : 0.5
             ))
@@ -113,7 +113,7 @@ var displayThings = [
 
 // Determines when the game "ends"
 function isEndgame() {
-    return player.points.gte(new Decimal(Infinity))
+    return player.points.gte('ee1000')
 }
 
 // Less important things beyond this point!

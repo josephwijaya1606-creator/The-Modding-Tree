@@ -405,6 +405,23 @@ function gameLoop(diff) {
     player.timeSpeed = D(1)
     player.globalTS = Decimal.mul(player.timeSpeed, player.setTimeSpeed)
 
+	let massive_destruction = hasUpgrade('q', 34) && !(
+		inChallenge('p', 11)
+		|| inChallenge('p', 12)
+		|| inChallenge('p', 14)
+		|| inChallenge('p', 31)
+		|| inChallenge('p', 41)
+		|| inChallenge('p', 21)
+		|| inChallenge('p', 22)
+		|| inChallenge('p', 23)
+		|| inChallenge('p', 24)
+		|| inChallenge('p', 25)
+		|| inChallenge('q', 11)
+		|| inChallenge('q', 12)
+		|| inChallenge('q', 13)
+		|| inChallenge('q', 14)
+	)
+
 	if (tmp.reductionFactors) {
 		tmp.reductionFactors.dilate.exp = D(1.25)
 		tmp.reductionFactors.sc1.exp = D(2)
@@ -416,7 +433,7 @@ function gameLoop(diff) {
 			dilate: {exp: D(1.25), eff: D(1)},
 			sc1:    {exp: D(2),    start: D(1e10), eff: D(1)},
 			sc2:    {exp: D(3),    start: D(1e33), eff: D(1)},
-			sc3:    {exp: D(2.5),  start: D('ee100'), eff: D(1)}
+			sc3:    {exp: D(2.5),  start: D(Infinity), eff: D(1)}
 		}
 	}
 
@@ -476,7 +493,8 @@ function gameLoop(diff) {
 		tmp.reductionFactors.sc1.exp = D(1)
 	}
 
-	tmp.reductionFactors.sc3.start = D(inChallenge('q', 13) ? 'ee6' : 'eeee300')
+	tmp.reductionFactors.sc3.start = D(inChallenge('q', 13) ? 'ee6' : 'e1.797693e308')
+	tmp.reductionFactors.sc3.exp = D(inChallenge('q', 13) ? 2.5 : 1.0001)
 
 	// cap lesser tier softcaps before higher tier softcaps
 	tmp.reductionFactors.sc2.start = tmp.reductionFactors.sc2.start.min(tmp.reductionFactors.sc3.start)
@@ -539,6 +557,7 @@ function gameLoop(diff) {
 		tmp.reductionFactors.sc1.eff = D(1)
 	}
 
+
     if (player.points.gte(10)) {
 		tmp.reductionFactors.dilate.eff = pointGradualSoftcap(1, player.points, D(10), tmp.reductionFactors.dilate.exp, false)
 		if (Decimal.eq_tolerance(tmp.reductionFactors.dilate.eff, tmp.reductionFactors.dilate.eff.add(finalPointGen))) {
@@ -553,7 +572,11 @@ function gameLoop(diff) {
 		tmp.reductionFactors.dilate.eff = D(1)
 	}
 
-    player.points = player.points.add(finalPointGen.mul(inChallenge('p', 23) ? 1 : diff))
+	if (massive_destruction) {
+		player.points = player.points.max(1).mul(finalPointGen.max(10).log10().mul(inChallenge('p', 23) ? 1 : diff).mul(player.globalTS).pow10())
+	} else {
+		player.points = player.points.add(finalPointGen.mul(inChallenge('p', 23) ? 1 : diff).mul(player.globalTS))
+	}
 
     if (player.points.gte(10)) {
         player.points = pointGradualSoftcap(1, player.points, D(10), tmp.reductionFactors.dilate.exp, true)

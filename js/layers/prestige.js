@@ -47,16 +47,42 @@ addLayer('p', {
     baseAmount() { return player.points }, // Get the current amount of baseResource
     type: "custom", // normal: cost to gain currency depends on amount gained. static: cost depends on how much you already have
     update(diff) {
-        player.p.timeInP = player.p.timeInP.add(player.globalTS.mul(diff))
+        let timeMul = D(1)
+        if (hasUpgrade('q', 33) && player.l.petEquipped.length >= tmp.l.petEquipCap) {
+            timeMul = timeMul.div(5)
+        }
+        player.p.timeInP = player.p.timeInP.add(timeMul.mul(player.globalTS).mul(diff))
 
         if (hasMilestone('q', 6)) {
-            let gen = tmp.p.getResetGain.mul(player.globalTS).mul(diff).mul(0.01)
+            let ultra_destruction = hasUpgrade('q', 35) && !(
+                inChallenge('p', 11)
+                || inChallenge('p', 12)
+                || inChallenge('p', 14)
+                || inChallenge('p', 31)
+                || inChallenge('p', 41)
+                || inChallenge('p', 21)
+                || inChallenge('p', 22)
+                || inChallenge('p', 23)
+                || inChallenge('p', 24)
+                || inChallenge('p', 25)
+                || inChallenge('q', 11)
+                || inChallenge('q', 12)
+                || inChallenge('q', 13)
+                || inChallenge('q', 14)
+            )
+
+            let gen = tmp.p.getResetGain
             if (inChallenge('p', 21) || inChallenge('p', 23)) {
                 gen = D(0)
             }
 
-            player.p.points = player.p.points.add(gen)
-            player.p.total = player.p.total.add(gen)
+            if (ultra_destruction) {
+                player.p.points = player.p.points.max(1).mul(gen.max(10).log10().mul(diff).mul(player.globalTS).pow10())
+                player.p.total = player.p.total.max(1).mul(gen.max(10).log10().mul(diff).mul(player.globalTS).pow10())
+            } else {
+                player.p.points = player.p.points.add(gen.mul(diff).mul(player.globalTS).mul(0.01))
+                player.p.total = player.p.total.add(gen.mul(diff).mul(player.globalTS).mul(0.01))
+            }
             player.p.best = player.p.best.max(player.p.points)
         }
 
@@ -114,7 +140,7 @@ addLayer('p', {
         } else {
             player.p.hsChalBest = player.p.hsChalBest.max('e3e5')
         }
-        if (inChallenge('p', 41)) {
+        if (inChallenge('p', 41) || hasUpgrade('q', 31)) {
             player.p.hsChalBest = Decimal.max(player.p.hsChalBest, player.points)
         }
         player.p.hsPoints = player.p.hsPoints.add(tmp.p.hspGen.mul(diff))
@@ -205,7 +231,7 @@ addLayer('p', {
             tmp.p.buyables[51].buyMax()
         }
         
-        if (hasUpgrade('q', 23)) {
+        if (hasUpgrade('q', 23) && !player.l.petEquipped.includes('hexagon')) {
             tmp.p.buyables[52].buyMax()
         }
         
@@ -213,6 +239,12 @@ addLayer('p', {
             tmp.p.buyables[71].buyMax()
             tmp.p.buyables[72].buyMax()
             tmp.p.buyables[73].buyMax()
+        }
+        
+        if (hasUpgrade('q', 32)) {
+            tmp.p.buyables[81].buyMax()
+            tmp.p.buyables[82].buyMax()
+            tmp.p.buyables[83].buyMax()
         }
         
         if (hasMilestone('q', 3)) {
@@ -318,6 +350,7 @@ addLayer('p', {
         if (player.l.petEquipped.includes('triangle')) {
             i = i.pow(tmp.l.petActiveEffs.triangle)
         }
+        i = i.pow(tmp.q.buyables[23].effect)
         return i
     },
     hspGalaxyInterval() {
@@ -1958,8 +1991,14 @@ addLayer('p', {
                     return `Check Tier Milestones...`
                 },
                 scaleModifEffective(x) {
+                    if (x.gte(10000)) {
+                        x = x.div(10000).sqrt().sub(1).mul(2).exp().mul(10000)
+                    }
                     if (challengeCompletions('p', 12).gte(13)) {
                         x = x.mul(0.95)
+                    }
+                    if (player.l.petEquipped.includes('hexagon')) {
+                        x = x.div(tmp.l.petActiveEffs.hexagon)
                     }
                     return x
                 },
@@ -1970,8 +2009,14 @@ addLayer('p', {
                     return x
                 },
                 scaleModifTarEff(x) {
+                    if (player.l.petEquipped.includes('hexagon')) {
+                        x = x.mul(tmp.l.petActiveEffs.hexagon)
+                    }
                     if (challengeCompletions('p', 12).gte(13)) {
                         x = x.div(0.95)
+                    }
+                    if (x.gte(10000)) {
+                        x = x.div(10000).ln().div(2).add(1).pow(2).mul(10000)
                     }
                     return x
                 },
@@ -2672,7 +2717,13 @@ addLayer('p', {
                         }
                     }
                     if (upgrade.costD.type === 0) {
-                        txt += `${format(upgrade.costD.main[0])} × ${format(upgrade.costD.main[1], 2)}<sup>n</sup> × ${format(upgrade.costD.main[2], 3)}<sup>n<sup>2</sup></sup>`
+                        txt += `${format(upgrade.costD.main[0])}`
+                        if (upgrade.costD.main[1].gt(1)) {
+                            txt += ` × ${format(upgrade.costD.main[1], 2)}<sup>n</sup>`
+                        }
+                        if (upgrade.costD.main[2].gt(1)) {
+                            txt += ` × ${format(upgrade.costD.main[2], 3)}<sup>n<sup>2</sup></sup>`
+                        }
                     } else if (upgrade.costD.type === 1) {
                         txt += `${format(upgrade.costD.main[0])} × ${format(upgrade.costD.main[1], 2)}<sup>n<sup>${format(upgrade.costD.main[2], 3)}</sup></sup>`
                     }
@@ -2688,6 +2739,12 @@ addLayer('p', {
                             txt += `<br>`
                         }
                         txt += `<br>Scales exponentially after ${format(100)} purchases.`
+                    }
+                    if (upgrade.type === 0 && upgrade.num === 4) {
+                        if (!hasExtra) {
+                            txt += `<br>`
+                        }
+                        txt += `<br>Scales exponentially after ${format(10000)} purchases.`
                     }
                 } else {
                     txt += `Effect: `

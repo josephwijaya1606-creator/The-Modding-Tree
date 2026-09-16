@@ -19,6 +19,7 @@ addLayer('q', {
         bestTimeInQ: D(0),
         allocated: [D(0), D(0), D(0), D(0)],
         allocGen: [D(0), D(0), D(0), D(0)],
+        waste: D(0)
     }},
     color() {
         return gRC(player.timePlayed / 6, 1.0, 1.0)
@@ -29,14 +30,43 @@ addLayer('q', {
     baseAmount() { return player.p.total }, // Get the current amount of baseResource
     type: "custom", // normal: cost to gain currency depends on amount gained. static: cost depends on how much you already have
     update(diff) {
+        let timeMul = D(1)
+        if (hasUpgrade('q', 33) && player.l.petEquipped.length >= tmp.l.petEquipCap) {
+            timeMul = timeMul.div(5)
+        }
+
+        player.q.waste = player.q.waste.add(Decimal.sub(1, timeMul).mul(player.globalTS).mul(diff))
+
         player.q.timeInQ = player.q.timeInQ.add(player.globalTS.mul(diff))
         player.q.bestTimeInQ = player.q.bestTimeInQ.add(player.globalTS.mul(diff))
 
         if (hasUpgrade('q', 17)) {
-            let gen = tmp.q.getResetGain.mul(player.globalTS).mul(diff)
+            let total_destruction = hasUpgrade('q', 36) && !(
+                inChallenge('p', 11)
+                || inChallenge('p', 12)
+                || inChallenge('p', 14)
+                || inChallenge('p', 31)
+                || inChallenge('p', 41)
+                || inChallenge('p', 21)
+                || inChallenge('p', 22)
+                || inChallenge('p', 23)
+                || inChallenge('p', 24)
+                || inChallenge('p', 25)
+                || inChallenge('q', 11)
+                || inChallenge('q', 12)
+                || inChallenge('q', 13)
+                || inChallenge('q', 14)
+            )
 
-            player.q.points = player.q.points.add(gen)
-            player.q.total = player.q.total.add(gen)
+            let gen = tmp.q.getResetGain
+
+            if (total_destruction) {
+                player.q.points = player.q.points.max(1).mul(gen.max(10).log10().mul(diff).mul(player.globalTS).pow10())
+                player.q.total = player.q.total.max(1).mul(gen.max(10).log10().mul(diff).mul(player.globalTS).pow10())
+            } else {
+                player.q.points = player.q.points.add(gen.mul(diff).mul(player.globalTS))
+                player.q.total = player.q.total.add(gen.mul(diff).mul(player.globalTS))
+            }
             player.q.best = player.q.best.max(player.q.points)
 
             for (let i = 0; i < player.q.allocated.length; i++) {
@@ -46,7 +76,11 @@ addLayer('q', {
 
         for (let i = 0; i < player.q.allocGen.length; i++) {
             if (hasUpgrade('q', 17)) {
-                player.q.allocGen[i] = player.q.allocGen[i].max(1).mul(tmp.q.generationGain[i].max(1).log10().mul(player.globalTS).mul(diff).pow10())
+                player.q.allocGen[i] = player.q.allocGen[i].max(1).mul(
+                    tmp.q.generationGain[i].max(1).log10()
+                    .mul(player.globalTS).mul(diff)
+                    .pow10()
+                )
             } else {
                 player.q.allocGen[i] = player.q.allocGen[i].add(tmp.q.generationGain[i].mul(player.globalTS).mul(diff))
             }
@@ -76,6 +110,7 @@ addLayer('q', {
             if (hasUpgrade('p', 263)) {
                 gen = gen.add(1).pow(1.2).sub(1)
             }
+            gen = gen.max(1).log10().pow(tmp.l.petPassiveEffs.hexagon).pow10()
             arr.push(gen)
         }
         return arr
@@ -650,7 +685,7 @@ addLayer('q', {
                 type: 0,
                 num: 4,
                 get costD() {
-                    const obj = {type: 0, exp: 2, main: [D(22), D(1.03), D(1.0025)]}
+                    const obj = {type: 0, exp: 2, main: [D(22), D(1.02), D(1.002)]}
 
                     return obj
                 },
@@ -665,10 +700,13 @@ addLayer('q', {
                         if (hasUpgrade('p', 284)) {
                             eff = eff.add(player.q.buyables[22])
                         }
+                        if (hasUpgrade('q', 37)) {
+                            eff = eff.add(player.q.buyables[23].sub(4).max(0))
+                        }
                         if (hasUpgrade('p', 253)) { eff = eff.mul(1.05) }
                     }
 
-                    let j = D(3)
+                    let j = D(2.5)
                     
                     eff = sumFactorial(eff, j, 0.5)
                     return eff;
@@ -699,7 +737,7 @@ addLayer('q', {
                 type: 0,
                 num: 5,
                 get costD() {
-                    const obj = {type: 0, exp: 2, main: [D(25), D(1.125), D(1.005)]}
+                    const obj = {type: 0, exp: 2, main: [D(26), D(1.1), D(1.005)]}
 
                     return obj
                 },
@@ -746,7 +784,7 @@ addLayer('q', {
                 type: 0,
                 num: 6,
                 get costD() {
-                    const obj = {type: 0, exp: 2, main: [D(30), D(1.15), D(1.01)]}
+                    const obj = {type: 0, exp: 2, main: [D(40), D(1.15), D(1.01)]}
 
                     return obj
                 },
@@ -916,7 +954,13 @@ addLayer('q', {
                         }
                     }
                     if (upgrade.costD.type === 0) {
-                        txt += `${format(upgrade.costD.main[0])} × ${format(upgrade.costD.main[1], 2)}<sup>n</sup> × ${format(upgrade.costD.main[2], 3)}<sup>n<sup>2</sup></sup>`
+                        txt += `${format(upgrade.costD.main[0])}`
+                        if (upgrade.costD.main[1].gt(1)) {
+                            txt += ` × ${format(upgrade.costD.main[1], 2)}<sup>n</sup>`
+                        }
+                        if (upgrade.costD.main[2].gt(1)) {
+                            txt += ` × ${format(upgrade.costD.main[2], 3)}<sup>n<sup>2</sup></sup>`
+                        }
                     } else if (upgrade.costD.type === 1) {
                         txt += `${format(upgrade.costD.main[0])} × ${format(upgrade.costD.main[1], 2)}<sup>n<sup>${format(upgrade.costD.main[2], 3)}</sup></sup>`
                     }
@@ -973,7 +1017,11 @@ addLayer('q', {
             cost: new Decimal('e1.5e14'),
             unlocked() { return challengeCompletions('p', 12).gte(20) },
             effect() { 
-                let ret = Decimal.pow(2.5, player.q.upgrades.length)
+                let ret = player.q.upgrades.length
+                if (hasUpgrade('q', 37)) {
+                    ret = Decimal.add(ret, player.q.buyables[23].sub(4).max(0))
+                }
+                ret = Decimal.pow(2.5, ret)
                 return ret;
             },
             effectDisplay() { return `&times${format(this.effect(), 1)}` }, 
@@ -1020,6 +1068,9 @@ addLayer('q', {
             effect() { 
                 // add 1 if the upg is id >21
                 let ret = player.q.upgrades.reduce((total, upg) => { return total + (upg >= 21 ? 1 : 0); }, 0)
+                if (hasUpgrade('q', 37)) {
+                    ret = Decimal.add(ret, player.q.buyables[23].sub(4).max(0))
+                }
                 ret = Decimal.pow(1.10, ret)
                 return ret;
             },
@@ -1033,6 +1084,9 @@ addLayer('q', {
             effect() { 
                 // add 1 if the upg is id >22
                 let ret = player.q.upgrades.reduce((total, upg) => { return total + (upg >= 22 ? 1 : 0); }, 0)
+                if (hasUpgrade('q', 37)) {
+                    ret = Decimal.add(ret, player.q.buyables[23].sub(4).max(0))
+                }
                 ret = Decimal.pow(0.95, ret)
                 return ret;
             },
@@ -1046,6 +1100,9 @@ addLayer('q', {
             effect() { 
                 // add 1 if the upg is id >23
                 let ret = player.q.upgrades.reduce((total, upg) => { return total + (upg >= 23 ? 1 : 0); }, 0)
+                if (hasUpgrade('q', 37)) {
+                    ret = Decimal.add(ret, player.q.buyables[23].sub(4).max(0))
+                }
                 ret = Decimal.pow(1.02, ret)
                 return ret;
             },
@@ -1079,6 +1136,48 @@ addLayer('q', {
             cost: new Decimal('e3.5e20'),
             unlocked() { return challengeCompletions('p', 12).gte(20) },
         },
+        31: {
+            title: "Hyper Pets",
+            description: "Add 1 more pet slot but 2 more pets. Gain Hyper Scaling Points as if you were in the challenge without the debuffs. Point gain from Pentagon applies at ^1 rate outside of Super Scaling.",
+            cost: new Decimal('ee23'),
+            unlocked() { return challengeCompletions('p', 12).gte(20) },
+        },
+        32: {
+            title: "Atomic Pets",
+            description: "Add 1 more pet slot. Automate Hyper Scaling Buyables 1-3.",
+            cost: new Decimal('ee39'),
+            unlocked() { return challengeCompletions('p', 12).gte(20) },
+        },
+        33: {
+            title: "Supercriticality",
+            description: "Add 2 more pet slots, but if you use all pet slots, then Pentagon's growth is reduced by 5&times; and is converted into waste.",
+            cost: new Decimal('ee45'),
+            unlocked() { return challengeCompletions('p', 12).gte(20) },
+        },
+        34: {
+            title: "Massive Destruction",
+            description: "Points now generate exponentially outside of all prestige and quaternion challenges.",
+            cost: new Decimal('ee50'),
+            unlocked() { return challengeCompletions('p', 12).gte(20) },
+        },
+        35: {
+            title: "Ultra Destruction",
+            description: "Prestige Points now generate exponentially outside of all prestige and quaternion challenges.",
+            cost: new Decimal('ee55'),
+            unlocked() { return challengeCompletions('p', 12).gte(20) },
+        },
+        36: {
+            title: "Total Destruction",
+            description: "Quaternions now generate exponentially outside of all prestige and quaternion challenges.",
+            cost: new Decimal('ee60'),
+            unlocked() { return challengeCompletions('p', 12).gte(20) },
+        },
+        37: {
+            title: "Finality",
+            description: "Luck Buyable 7 is boosted past 1,750 purchases. Quaternion Buyable 6 past 4 gives free upgrade count and free levels to QB4.",
+            cost: new Decimal('ee75'),
+            unlocked() { return challengeCompletions('p', 12).gte(20) },
+        },
     },
     tabFormat: {
         "Main": {
@@ -1089,6 +1188,8 @@ addLayer('q', {
                 function() { return `You have ${format(player.p.total)} total prestige points.` }],
                 "blank",
                 ["clickables", [1, 2, 3]],
+                ["display-text",
+                function() { return hasUpgrade('q', 33) ? `You have <h2 style="color: #383; text-shadow: #383 0px 0px 10px;">${format(player.q.waste)}</h2> waste.` : '' }],
                 "blank",
                 ["display-text",
                 function() { return `<span style="color: #ff8080">Your <h2 style="text-shadow: #ff0000 0px 0px 10px;">${format(player.q.allocated[0])}</h2>&times;[1] is generating <h2 style="text-shadow: #ff0000 0px 0px 10px;">${format(tmp.q.generationGain[0], 2)}</h2> red charge/s.</span>` }],
@@ -1150,7 +1251,9 @@ addLayer('q', {
                 ["display-text",
                 function() { return `You have ${format(player.p.total)} total prestige points.` }],
                 "blank",
-                ["upgrades", [1, 2]],
+                ["display-text",
+                function() { return hasUpgrade('q', 33) ? `You have <h2 style="color: #383; text-shadow: #383 0px 0px 10px;">${format(player.q.waste)}</h2> waste.` : '' }],
+                ["upgrades", [1, 2, 3]],
             ],
             unlocked(){
                 return challengeCompletions('p', 12).gte(20)

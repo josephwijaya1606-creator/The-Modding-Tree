@@ -38,8 +38,38 @@ const PET_FORMULAE = {
 }
 
 const PET_DATA = {
-    line: {
+    beam: {
         number: 1,
+        name: "Beam",
+        chance: D(16),
+        colors: {
+            fill: gRC(3.5, 0.9, 0.5),
+            cannotEquip: gRC(3.5, 0.2, 0.2),
+            base: gRC(3.5, 0.2, 0.5),
+            text: gRC(3.5, 1.0, 0.1),
+        },
+        baseXP: D(1e16),
+        baseSpd: D(1e4),
+        baseScale: D(1.01),
+        passiveEffs(lv) {
+            let eff = D(lv).sub(1)
+            eff = eff.mul(1)
+            return eff
+        },
+        passiveEffsDesc(eff) {
+            return `Add ${format(eff, 2)} free levels to the Line pet.`
+        },
+        activeEffs(lv) {
+            let eff = D(lv).sub(1)
+            eff = eff.mul(0.01).add(1)
+            return eff
+        },
+        activeEffsDesc(eff) {
+            return `Raise luck by ^${format(eff, 2)}`
+        }
+    },
+    line: {
+        number: 11,
         name: "Line",
         chance: D(0.3010299956639812), // 50% | 0.5 | -Math.log10(0.5)
         colors: {
@@ -53,6 +83,7 @@ const PET_DATA = {
         baseScale: D(1.01),
         passiveEffs(lv) {
             let eff = D(lv).sub(1)
+            eff = eff.add(tmp.l.petPassiveEffs.beam)
             eff = eff.mul(0.02).add(1)
             return eff
         },
@@ -61,6 +92,7 @@ const PET_DATA = {
         },
         activeEffs(lv) {
             let eff = D(lv).sub(1)
+            eff = eff.add(tmp.l.petPassiveEffs.beam)
             eff = eff.pow_base(1.5)
             return eff
         },
@@ -69,7 +101,7 @@ const PET_DATA = {
         }
     },
     circle: {
-        number: 2,
+        number: 12,
         name: "Circle",
         chance: D(0.6989700043360187), // 20% | 0.2 | -Math.log10(0.2)
         colors: {
@@ -99,14 +131,14 @@ const PET_DATA = {
         }
     },
     triangle: {
-        number: 3,
+        number: 13,
         name: "Triangle",
         chance: D(1.3010299956639812), // 5% | 0.05 | -Math.log10(0.05)
         colors: {
             fill: gRC(1.0, 0.75, 1.0),
             cannotEquip: gRC(1.0, 0.2, 0.2),
             base: gRC(1.0, 0.2, 1.0),
-            text: gRC(1.0, 1.0, 0.2),
+            text: gRC(1.0, 1.0, 0.1),
         },
         baseXP: D(10),
         baseSpd: D(2),
@@ -129,7 +161,7 @@ const PET_DATA = {
         }
     },
     square: {
-        number: 4,
+        number: 14,
         name: "Square",
         chance: D(5),
         colors: {
@@ -159,7 +191,7 @@ const PET_DATA = {
         }
     },
     pentagon: {
-        number: 5,
+        number: 15,
         name: "Pentagon",
         chance: D(7),
         colors: {
@@ -186,6 +218,36 @@ const PET_DATA = {
         },
         activeEffsDesc(eff) {
             return `In Super/Hyper Scaling, point gain ^${format(eff, 3)} (Caps at 20s)`
+        }
+    },
+    hexagon: {
+        number: 16,
+        name: "Hexagon",
+        chance: D(10),
+        colors: {
+            fill: gRC(5.0, 1.0, 1.0),
+            cannotEquip: gRC(5.0, 0.2, 0.2),
+            base: gRC(5.0, 0.2, 1.0),
+            text: gRC(5.0, 1.0, 0.2),
+        },
+        baseXP: D(1e15),
+        baseSpd: D(10),
+        baseScale: D(1.01),
+        passiveEffs(lv) {
+            let eff = D(lv).sub(1)
+            eff = eff.pow_base(1.05)
+            return eff
+        },
+        passiveEffsDesc(eff) {
+            return `Charge generation is increased by ^${format(eff, 2)}`
+        },
+        activeEffs(lv) {
+            let eff = D(lv).sub(1)
+            eff = eff.mul(0.01).add(1)
+            return eff
+        },
+        activeEffsDesc(eff) {
+            return `Disable Tier automation but decrease Tier scaling by -${formatPerc(eff, 2)}`
         }
     },
 }
@@ -358,6 +420,9 @@ addLayer('l', {
         if (hasUpgrade('q', 25)) {
             i = i.mul(1.1)
         }
+        if (player.l.petEquipped.includes('beam')) {
+            i = i.mul(tmp.l.petActiveEffs.beam)
+        }
         return i
     },
     rollLol() {
@@ -379,6 +444,7 @@ addLayer('l', {
             i = i.mul(player.l.rollPoints.max(10).log10().pow(upgradeEffect('l', 22)))
         }
         i = i.mul(tmp.l.buyables[21].effect)
+        i = i.pow(tmp.q.buyables[23].effect)
         return i
     },
     energyPS() {
@@ -420,6 +486,10 @@ addLayer('l', {
                 case "square":
                 case "pentagon":
                     obj[pet] = challengeCompletions('p', 12).gte(18)
+                    break;
+                case "beam":
+                case "hexagon":
+                    obj[pet] = hasUpgrade('q', 31)
                     break;
             }
         }
@@ -475,6 +545,15 @@ addLayer('l', {
         if (hasUpgrade('q', 13)) {
             i += 1
         }
+        if (hasUpgrade('q', 31)) {
+            i += 1
+        }
+        if (hasUpgrade('q', 32)) {
+            i += 1
+        }
+        if (hasUpgrade('q', 33)) {
+            i += 2
+        }
         return i
     },
     petLuckPow() {
@@ -520,7 +599,7 @@ addLayer('l', {
         },
         13: {
             title: "\"Lose all your money...\"",
-            description: "Every roll, trade 10% of your Point Buyable 5 clicks for extra luck. Your highest luck boosts PB5 clicks.",
+            description: "Every roll, trade 10% of your Point Buyable 5 clicks for extra luck. Your highest luck boosts Buyable 5 clicks.",
             cost: new Decimal(100000),
             unlocked() { return true },
             currencyInternalName: 'rollPoints',
@@ -1032,7 +1111,15 @@ addLayer('l', {
 
                     let j = D(0.5)
                     
-                    eff = Decimal.mul(j, eff)
+                    if (hasUpgrade('q', 37)) {
+                        eff = Decimal.mul(j, eff).mul(
+                            eff.lt(10050)
+                                ? Decimal.pow(4, eff.sub(1750).max(0).div(50))
+                                : eff.div(10000).sqrt().sub(1).mul(2).add(1).pow_base(1e100)
+                        )
+                    } else {
+                        eff = Decimal.mul(j, eff)
+                    }
                     eff = eff.add(1)
                     return eff;
                 },
@@ -1295,7 +1382,13 @@ addLayer('l', {
                         }
                     }
                     if (upgrade.costD.type === 0) {
-                        txt += `${format(upgrade.costD.main[0])} × ${format(upgrade.costD.main[1], 2)}<sup>n</sup> × ${format(upgrade.costD.main[2], 3)}<sup>n<sup>2</sup></sup>`
+                        txt += `${format(upgrade.costD.main[0])}`
+                        if (upgrade.costD.main[1].gt(1)) {
+                            txt += ` × ${format(upgrade.costD.main[1], 2)}<sup>n</sup>`
+                        }
+                        if (upgrade.costD.main[2].gt(1)) {
+                            txt += ` × ${format(upgrade.costD.main[2], 3)}<sup>n<sup>2</sup></sup>`
+                        }
                     } else if (upgrade.costD.type === 1) {
                         txt += `${format(upgrade.costD.main[0])} × ${format(upgrade.costD.main[1], 2)}<sup>n<sup>${format(upgrade.costD.main[2], 3)}</sup></sup>`
                     }
@@ -1377,12 +1470,12 @@ addLayer('l', {
                     },
                     display() {
                         let currXP = player.l.pets[pet];
-                        if (tmp.l.petLevels[pet].gt(1)) {
+                        if (tmp.l.petLevels[pet].gte(2)) {
                             currXP = currXP.sub(PET_FORMULAE.level_to_xp(pet, tmp.l.petLevels[pet].floor()));
                         }
 
                         let nextXP = PET_FORMULAE.level_to_xp(pet, tmp.l.petLevels[pet].floor().add(1))
-                        if (tmp.l.petLevels[pet].gt(1)) {
+                        if (tmp.l.petLevels[pet].gte(2)) {
                             nextXP = nextXP.sub(PET_FORMULAE.level_to_xp(pet, tmp.l.petLevels[pet].floor()));
                         }
                         return `${(PET_DATA[pet] ?? { name: "Undefined" }).name} (1/${format(Decimal.div((PET_DATA[pet] ?? { chance: D(Infinity) }).chance, tmp.l.petLuckPow).pow10(), 1)}) | Lv. ${format(tmp.l.petLevels[pet].floor())} - ${format(currXP)} / ${format(nextXP)}`;
@@ -1407,7 +1500,7 @@ addLayer('l', {
                     txt += `<br>`
                 }
                 for (let i = 0; i < player.l.petsGained.length; i++) {
-                    txt += `<br><span style="color: ${(PET_DATA[player.l.petsGained[i].petType] ?? { colors: { base: "#000000" } }).colors.base}">You gained ${format(player.l.petsGained[i].gain)} ${player.l.petsGained[i].pet}</span>`
+                    txt += `<br><span style="color: ${(PET_DATA[player.l.petsGained[i].petType] ?? { colors: { base: "#000000" } }).colors.base}">+${format(player.l.petsGained[i].gain)} ${player.l.petsGained[i].pet}</span>`
                 }
                 return txt
             },
@@ -1446,12 +1539,12 @@ addLayer('l', {
                         
                         // console.log(`pet: ${pet} - petLuck: ${format(petLuck, 4)} - base chance: ${format(PET_DATA[pet].chance, 4)} - gain: ${format(Decimal.log(petLuck, PET_DATA[pet].chance).floor(), 2)}`)
                         let currXP = player.l.pets[pet].add(gain);
-                        if (tmp.l.petLevels[pet].gt(1)) {
+                        if (tmp.l.petLevels[pet].gte(2)) {
                             currXP = currXP.sub(PET_FORMULAE.level_to_xp(pet, tmp.l.petLevels[pet].floor()));
                         }
                         
                         let nextXP = PET_FORMULAE.level_to_xp(pet, tmp.l.petLevels[pet].floor().add(1))
-                        if (tmp.l.petLevels[pet].gt(1)) {
+                        if (tmp.l.petLevels[pet].gte(2)) {
                             nextXP = nextXP.sub(PET_FORMULAE.level_to_xp(pet, tmp.l.petLevels[pet].floor()));
                         }
                         
@@ -1552,6 +1645,8 @@ addLayer('l', {
                 ["display-text",
                 function() { return `You can equip <h2 style="color: #FFFFFF; font-size: 26px; text-shadow: #FFFFFF 0px 0px 10px;">${format(player.l.petEquipped.length)} / ${format(tmp.l.petEquipCap)}</h2> pets.` }],
                 "blank",
+                ["display-text",
+                function() { return hasUpgrade('q', 33) ? `You have <h2 style="color: #383; text-shadow: #383 0px 0px 10px;">${format(player.q.waste)}</h2> waste.` : '' }],
                 ...(() => {
                     const arr = []
                     for (let pet in PET_DATA) {
@@ -1564,7 +1659,7 @@ addLayer('l', {
                                         "blank",
                                         ["display-text",
                                         function() { return tmp.l.petUnlocked[pet]
-                                                ? `(${player.l.petEquipped.includes(pet) ? 'Active' : 'Inactive'}) ${tmp.l.petActiveEffDesc[pet]}`
+                                                ? `<span style="color: ${player.l.petEquipped.includes(pet) ? '#dfdfdf' : '#808080'}">(${player.l.petEquipped.includes(pet) ? 'Active' : 'Inactive'}) ${tmp.l.petActiveEffDesc[pet]}</span>`
                                                 : '' }],
                                         ["display-text",
                                         function() { return tmp.l.petUnlocked[pet]
